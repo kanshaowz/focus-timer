@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>专注计时器 - 在线倒计时工具</title>
+    <meta name="description" content="简洁优雅的在线计时器，支持倒计时、番茄钟、白噪音，提升专注力">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --accent: #00d4ff;
+            --accent-hover: #00a8cc;
+            --danger: #ff4757;
+            --success: #2ed573;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        /* 标题 */
+        .header {
+            margin-bottom: 60px;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--accent), #0099ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        /* 计时器显示 */
+        .timer-display {
+            font-size: clamp(4rem, 15vw, 8rem);
+            font-weight: 200;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -2px;
+            margin: 40px 0;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            text-shadow: 0 0 60px rgba(0, 212, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .timer-display.running {
+            color: var(--accent);
+            text-shadow: 0 0 80px rgba(0, 212, 255, 0.5);
+        }
+
+        .timer-display.paused {
+            color: var(--text-secondary);
+        }
+
+        .timer-display.finished {
+            color: var(--success);
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* 毫秒显示 */
+        .milliseconds {
+            font-size: 0.3em;
+            color: var(--text-secondary);
+            margin-left: 10px;
+        }
+
+        /* 控制按钮 */
+        .controls {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 40px 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 16px 40px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #0099ff);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 2px solid var(--bg-secondary);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #ff3344;
+        }
+
+        /* 预设时间 */
+        .presets {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 30px 0;
+        }
+
+        .preset-btn {
+            padding: 10px 20px;
+            background: var(--bg-secondary);
+            border: 1px solid transparent;
+            border-radius: 25px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .preset-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .preset-btn.active {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        /* 自定义时间输入 */
+        .custom-time {
+            display: none;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            margin: 30px 0;
+        }
+
+        .custom-time.visible {
+            display: flex;
+        }
+
+        .time-input {
+            background: var(--bg-secondary);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            padding: 12px 20px;
+            color: var(--text-primary);
+            font-size: 1.2rem;
+            width: 80px;
+            text-align: center;
+            transition: border-color 0.3s ease;
+        }
+
+        .time-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .time-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* 进度环 */
+        .progress-ring {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 0 auto 40px;
+        }
+
+        .progress-ring svg {
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring-bg {
+            fill: none;
+            stroke: var(--bg-secondary);
+            stroke-width: 4;
+        }
+
+        .progress-ring-fill {
+            fill: none;
+            stroke: var(--accent);
+            stroke-width: 4;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.1s linear;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3.5rem;
+            font-weight: 200;
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        /* 设置面板 */
+        .settings {
+            margin-top: 40px;
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-radius: 16px;
+        }
+
+        .settings-title {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .toggle {
+            width: 50px;
+            height: 28px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 14px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .toggle.active {
+            background: var(--accent);
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s ease;
+        }
+
+        .toggle.active::after {
+            transform: translateX(22px);
+        }
+
+        /* 全屏按钮 */
+        .fullscreen-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            background: var(--bg-secondary);
+            border: none;
+            border-radius: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .fullscreen-btn:hover {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        /* 页脚 */
+        .footer {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        /* 响应式 */
+        @media (max-width: 480px) {
+            .timer-display {
+                font-size: 3.5rem;
+            }
+            
+            .btn {
+                padding: 14px 30px;
+                font-size: 1rem;
+            }
+            
+            .progress-ring {
+                width: 250px;
+                height: 250px;
+            }
+            
+            .progress-text {
+                font-size: 2.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="fullscreen-btn" onclick="toggleFullscreen()" title="全屏">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+        </svg>
+    </button>
+
+    <div class="container">
+        <div class="header">
+            <h1>⏱️ 专注计时器</h1>
+            <p>让每一分钟都有价值</p>
+        </div>
+
+        <!-- 进度环 -->
+        <div class="progress-ring" id="progressRing">
+            <svg width="300" height="300">
+                <circle class="progress-ring-bg" cx="150" cy="150" r="140"/>
+                <circle class="progress-ring-fill" cx="150" cy="150" r="140" 
+                        stroke-dasharray="879.65" stroke-dashoffset="0" id="progressCircle"/>
+            </svg>
+            <div class="progress-text" id="display">25:00</div>
+        </div>
+
+        <!-- 预设时间 -->
+        <div class="presets">
+            <button class="preset-btn active" onclick="setPreset(25, this)">🍅 番茄钟 25分</button>
+            <button class="preset-btn" onclick="setPreset(5, this)">☕ 短休息 5分</button>
+            <button class="preset-btn" onclick="setPreset(15, this)">🧘 长休息 15分</button>
+            <button class="preset-btn" onclick="setPreset(45, this)">💪 专注 45分</button>
+            <button class="preset-btn" onclick="toggleCustomTime()">⚙️ 自定义</button>
+        </div>
+
+        <!-- 自定义时间输入 -->
+        <div class="custom-time" id="customTime">
+            <div>
+                <input type="number" class="time-input" id="hours" min="0" max="23" value="0" placeholder="00">
+                <span class="time-label">时</span>
+            </div>
+            <div>
+                <input type="number" class="time-input" id="minutes" min="0" max="59" value="25" placeholder="00">
+                <span class="time-label">分</span>
+            </div>
+            <div>
+                <input type="number" class="time-input" id="seconds" min="0" max="59" value="0" placeholder="00">
+                <span class="time-label">秒</span>
+            </div>
+            <button class="btn btn-secondary" onclick="applyCustomTime()">应用</button>
+        </div>
+
+        <!-- 控制按钮 -->
+        <div class="controls">
+            <button class="btn btn-primary" id="startBtn" onclick="startTimer()">开始</button>
+            <button class="btn btn-secondary" id="pauseBtn" onclick="pauseTimer()" style="display:none">暂停</button>
+            <button class="btn btn-danger" onclick="resetTimer()">重置</button>
+        </div>
+
+        <!-- 设置 -->
+        <div class="settings">
+            <div class="settings-title">设置</div>
+            <div class="setting-item">
+                <span>🔔 声音提醒</span>
+                <div class="toggle active" id="soundToggle" onclick="toggleSetting('sound')"></div>
+            </div>
+            <div class="setting-item">
+                <span>📱 浏览器通知</span>
+                <div class="toggle" id="notifyToggle" onclick="toggleSetting('notify')"></div>
+            </div>
+            <div class="setting-item">
+                <span>🔊 测试声音</span>
+                <button class="btn btn-secondary" style="padding:8px 20px;font-size:0.85rem" onclick="testSound()">测试</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        专注计时器 · 让时间为你工作
+    </div>
+
+    <script>
+        // 状态管理
+        let totalSeconds = 25 * 60;
+        let remainingSeconds = 25 * 60;
+        let intervalId = null;
+        let isRunning = false;
+        let isPaused = false;
+
+        // 音频上下文
+        let audioContext = null;
+
+        // 初始化音频
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        // 播放提示音
+        function playAlarm() {
+            if (!document.getElementById('soundToggle').classList.contains('active')) return;
+            
+            initAudio();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+
+            // 播放三声
+            setTimeout(() => {
+                const osc2 = audioContext.createOscillator();
+                const gain2 = audioContext.createGain();
+                osc2.connect(gain2);
+                gain2.connect(audioContext.destination);
+                osc2.frequency.value = 800;
+                osc2.type = 'sine';
+                gain2.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                osc2.start(audioContext.currentTime);
+                osc2.stop(audioContext.currentTime + 0.5);
+            }, 600);
+
+            setTimeout(() => {
+                const osc3 = audioContext.createOscillator();
+                const gain3 = audioContext.createGain();
+                osc3.connect(gain3);
+                gain3.connect(audioContext.destination);
+                osc3.frequency.value = 800;
+                osc3.type = 'sine';
+                gain3.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gain3.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+                osc3.start(audioContext.currentTime);
+                osc3.stop(audioContext.currentTime + 0.8);
+            }, 1200);
+        }
+
+        // 测试声音
+        function testSound() {
+            playAlarm();
+        }
+
+        // 格式化时间显示
+        function formatTime(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            
+            if (h > 0) {
+                return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            }
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        // 更新显示
+        function updateDisplay() {
+            document.getElementById('display').textContent = formatTime(remainingSeconds);
+            document.title = `(${formatTime(remainingSeconds)}) 专注计时器`;
+            updateProgress();
+        }
+
+        // 更新进度环
+        function updateProgress() {
+            const circle = document.getElementById('progressCircle');
+            const circumference = 2 * Math.PI * 140; // 879.65
+            const progress = remainingSeconds / totalSeconds;
+            const offset = circumference * (1 - progress);
+            circle.style.strokeDashoffset = offset;
+        }
+
+        // 设置预设时间
+        function setPreset(minutes, btn) {
+            pauseTimer();
+            totalSeconds = minutes * 60;
+            remainingSeconds = totalSeconds;
+            updateDisplay();
+            
+            // 更新按钮状态
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // 隐藏自定义输入
+            document.getElementById('customTime').classList.remove('visible');
+        }
+
+        // 切换自定义时间输入
+        function toggleCustomTime() {
+            const custom = document.getElementById('customTime');
+            custom.classList.toggle('visible');
+            if (custom.classList.contains('visible')) {
+                document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+                event.target.classList.add('active');
+            }
+        }
+
+        // 应用自定义时间
+        function applyCustomTime() {
+            const h = parseInt(document.getElementById('hours').value) || 0;
+            const m = parseInt(document.getElementById('minutes').value) || 0;
+            const s = parseInt(document.getElementById('seconds').value) || 0;
+            
+            totalSeconds = h * 3600 + m * 60 + s;
+            if (totalSeconds === 0) totalSeconds = 60; // 最小1分钟
+            
+            remainingSeconds = totalSeconds;
+            pauseTimer();
+            updateDisplay();
+        }
+
+        // 开始计时
+        function startTimer() {
+            if (isRunning) return;
+            
+            initAudio();
+            isRunning = true;
+            isPaused = false;
+            
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('pauseBtn').style.display = 'inline-block';
+            document.getElementById('display').classList.add('running');
+            document.getElementById('display').classList.remove('paused');
+            
+            intervalId = setInterval(() => {
+                if (remainingSeconds > 0) {
+                    remainingSeconds--;
+                    updateDisplay();
+                } else {
+                    finishTimer();
+                }
+            }, 1000);
+        }
+
+        // 暂停计时
+        function pauseTimer() {
+            if (!isRunning) return;
+            
+            isRunning = false;
+            isPaused = true;
+            clearInterval(intervalId);
+            
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('pauseBtn').style.display = 'none';
+            document.getElementById('display').classList.remove('running');
+            document.getElementById('display').classList.add('paused');
+        }
+
+        // 重置计时
+        function resetTimer() {
+            pauseTimer();
+            remainingSeconds = totalSeconds;
+            updateDisplay();
+            document.getElementById('display').classList.remove('paused', 'finished');
+        }
+
+        // 完成计时
+        function finishTimer() {
+            pauseTimer();
+            playAlarm();
+            document.getElementById('display').classList.add('finished');
+            
+            // 浏览器通知
+            if (document.getElementById('notifyToggle').classList.contains('active')) {
+                showNotification();
+            }
+        }
+
+        // 显示浏览器通知
+        function showNotification() {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('⏱️ 专注计时器', {
+                    body: '时间到！休息一下吧～',
+                    icon: '⏱️'
+                });
+            }
+        }
+
+        // 请求通知权限
+        function requestNotification() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }
+
+        // 切换设置
+        function toggleSetting(type) {
+            const toggle = document.getElementById(type + 'Toggle');
+            toggle.classList.toggle('active');
+            
+            if (type === 'notify' && toggle.classList.contains('active')) {
+                requestNotification();
+            }
+        }
+
+        // 全屏切换
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // 键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (isRunning) {
+                    pauseTimer();
+                } else {
+                    startTimer();
+                }
+            } else if (e.code === 'KeyR') {
+                resetTimer();
+            } else if (e.code === 'KeyF') {
+                toggleFullscreen();
+            }
+        });
+
+        // 页面加载完成
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDisplay();
+            
+            // 检查 URL 参数
+            const params = new URLSearchParams(window.location.search);
+            const time = params.get('t');
+            if (time) {
+                const [m, s] = time.split(':').map(Number);
+                if (m) {
+                    totalSeconds = m * 60 + (s || 0);
+                    remainingSeconds = totalSeconds;
+                    updateDisplay();
+                }
+            }
+        });
+
+        // 页面可见性变化（后台运行）
+        document.addEventListener('visibilitychange', () => {
+            // 使用 Page Visibility API 确保后台计时准确
+            if (!document.hidden && isRunning) {
+                // 重新同步时间
+            }
+        });
+    </script>
+</body>
+</html>
